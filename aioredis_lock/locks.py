@@ -40,7 +40,7 @@ class RedisLock:
     wait_timeout: int = 30
 
     # Used internally for uniquely identifying this lock instance.
-    _token: str = dataclasses.field(default_factory=token_factory, init=False)
+    token: str = dataclasses.field(default_factory=token_factory)
 
     # Used internally for storing the SHA of loaded lua scripts
     _acquire_script: Optional[str] = dataclasses.field(default=None, init=False)
@@ -81,7 +81,7 @@ class RedisLock:
         """Determine if the instance is the owner of the lock"""
         return (
             await self.pool_or_conn.get(self.key)
-        ) == self._token.encode()  # pylint: disable=no-member
+        ) == self.token.encode()  # pylint: disable=no-member
 
     async def acquire(self, timeout=30, wait_timeout=30) -> bool:
         """
@@ -97,7 +97,7 @@ class RedisLock:
             if await self._script_exec(
                 (await self.acquire_script()),
                 keys=[self.key],
-                args=[self._token, timeout * 1000],
+                args=[self.token, timeout * 1000],
             ):
                 return True
 
@@ -118,7 +118,7 @@ class RedisLock:
         return await self._script_exec(
             (await self.extend_script()),
             keys=[self.key],
-            args=[self._token, added_time * 1000],
+            args=[self.token, added_time * 1000],
         )
 
     async def release(self) -> bool:
@@ -128,7 +128,7 @@ class RedisLock:
         :returns: bool of the success
         """
         return await self._script_exec(
-            (await self.release_script()), keys=[self.key], args=[self._token]
+            (await self.release_script()), keys=[self.key], args=[self.token]
         )
 
     async def renew(self, timeout: Optional[int] = 30) -> bool:
@@ -142,7 +142,7 @@ class RedisLock:
         return await self._script_exec(
             (await self.renew_script()),
             keys=[self.key],
-            args=[self._token, (timeout or self.timeout) * 1000],
+            args=[self.token, (timeout or self.timeout) * 1000],
         )
 
     async def _script_exec(self, sha: str, keys: List[str], args: List[str]) -> bool:
